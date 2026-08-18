@@ -521,6 +521,7 @@
     const guestBtn = document.getElementById('guestBtn');
     const roleBadge = document.getElementById('roleBadge');
     const tableWrap = document.getElementById('tableWrap');
+    const statusBar = document.getElementById('statusBar');
 
     function getToday() {
         return new Date().toISOString().split('T')[0];
@@ -552,56 +553,135 @@
             day: 'numeric'
         });
     }
-
-    const today = getToday();
-    const DEFAULT_ENTRIES = [
-        { id: '1', desc: 'Gaji harian', income: 150000, expense: 0, modal: 0, date: today },
-        { id: '2', desc: 'Makan siang', income: 0, expense: 35000, modal: 0, date: today },
-        { id: '3', desc: 'Jasa desain', income: 75000, expense: 0, modal: 0, date: today },
-        { id: '4', desc: 'Transport', income: 0, expense: 20000, modal: 0, date: today },
-        { id: '5', desc: 'Snack', income: 0, expense: 12000, modal: 0, date: today },
-        { id: '6', desc: 'Modal awal', income: 0, expense: 0, modal: 500000, date: today }
-    ];
-
-    function calculateTotals() {
-        let ti = 0,
-            te = 0,
-            mm = 0;
+function setStatus(text, isError = false) {
+    statusBar.textContent = text;
+    statusBar.style.color = isError ? '#b13e3e' : '#4a6a8a';
+    }
+async function loadFromGitHub() {
+    try {
+        setStatus('⏳ Membaca data dari GitHub...');
+        
+        const response = await fetch(GITHUB_API);
+        
+        if (!response.ok) {
+            if (response.status === 404) {
+                // File belum ada, buat default
+                setStatus('📝 File data belum ada, membuat baru...');
+                const today = getToday();
+                entries = [
+                    { id: '1', desc: 'Gaji harian', income: 150000, expense: 0, modal: 0, date: today },
+                    { id: '2', desc: 'Makan siang', income: 0, expense: 35000, modal: 0, date: today },
+                    { id: '3', desc: 'Jasa desain', income: 75000, expense: 0, modal: 0, date: today },
+                    { id: '4', desc: 'Transport', income: 0, expense: 20000, modal: 0, date: today },
+                    { id: '5', desc: 'Snack', income: 0, expense: 12000, modal: 0, date: today },
+                    { id: '6', desc: 'Modal awal', income: 0, expense: 0, modal: 500000, date: today }
+                ];
+                await saveToGitHub();
+                render();
+                setStatus('✅ Data baru dibuat!');
+                return;
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        // Decode dari base64
+        const content = atob(data.content);
+        entries = JSON.parse(content);
+        
+        // Pastikan semua entry punya field yang diperlukan
         for (const e of entries) {
-            ti += Number(e.income) || 0;
-            te += Number(e.expense) || 0;
-            mm += Number(e.modal) || 0;
+            if (e.modal === undefined) e.modal = 0;
+            if (!e.date) e.date = getToday();
         }
-        return { totalIncome: ti, totalExpense: te, manualModal: mm };
+        
+        setStatus(`✅ Data dimuat (${entries.length} entri)`);
+        render();
+        
+    } catch (error) {
+        console.error('Load error:', error);
+        setStatus('❌ Gagal memuat data! Cek koneksi & token.', true);
+        // Fallback ke data default
+        const today = getToday();
+        entries = [
+            { id: '1', desc: 'Gaji harian', income: 150000, expense: 0, modal: 0, date: today },
+            { id: '2', desc: 'Makan siang', income: 0, expense: 35000, modal: 0, date: today },
+            { id: '3', desc: 'Jasa desain', income: 75000, expense: 0, modal: 0, date: today },
+            { id: '4', desc: 'Transport', income: 0, expense: 20000, modal: 0, date: today },
+            { id: '5', desc: 'Snack', income: 0, expense: 12000, modal: 0, date: today },
+            { id: '6', desc: 'Modal awal', income: 0, expense: 0, modal: 500000, date: today }
+        ];
+        render();
     }
+}
 
-    function saveToLocalStorage() {
-        try {
-            localStorage.setItem('dailyEntries', JSON.stringify(entries));
-        } catch (e) {}
-    }
-
-    function loadFromLocalStorage() {
-        const stored = localStorage.getItem('dailyEntries');
-        if (stored) {
-            try {
-                const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    entries = parsed;
-                    for (const e of entries) {
-                        if (e.modal === undefined) e.modal = 0;
-                        if (!e.date) e.date = getToday();
-                    }
-                    return;
-                }
-            } catch (e) {}
+// Simpan data ke GitHub
+async function saveToGitHub() {
+    if (isSaving) return;
+    isSaving = true;
+    
+    try {
+        setStatus('⏳ Menyimpan ke GitHub...');
+        
+        // Ambil SHA file (dibutuhkan untuk update)
+        const getRes = await fetch(GITHUB_API);
+        let sha = null;
+        
+        if (getRes.ok) {
+            const getData = await getRes.json();
+            sha = getData.sha;
         }
-        entries = DEFAULT_ENTRIES.map(item => ({
-            ...item,
-            id: item.id || 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-            date: item.date || getToday()
-        }));
+        
+        // Convert ke base64
+        const jsonString = JSON.stringify(entries, null, 2);
+        const content = btoa(unescape(encodeURIComponent(jsonString)));
+        
+        const body = {
+            message: `Update data ${new Date().toLocaleString('id-ID')}`,
+            content: content
+        };
+        
+        if (sha) {
+            body.sha = sha;
+        }
+        
+        const response = await fetch(GITHUB_API, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `token ${GITHUB_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(body)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `HTTP ${response.status}`);
+        }
+        
+        setStatus(`✅ Data tersimpan! (${entries.length} entri)`);
+        
+    } catch (error) {
+        console.error('Save error:', error);
+        setStatus(`❌ Gagal simpan: ${error.message}`, true);
+        alert(`Gagal menyimpan data!\n\nError: ${error.message}\n\nPastikan:\n1. Token GitHub benar\n2. Repository public\n3. Koneksi internet stabil`);
+    } finally {
+        isSaving = false;
     }
+}
+
+// ========== RENDER FUNCTIONS ==========
+
+function calculateTotals() {
+    let ti = 0, te = 0, mm = 0;
+    for (const e of entries) {
+        ti += Number(e.income) || 0;
+        te += Number(e.expense) || 0;
+        mm += Number(e.modal) || 0;
+    }
+    return { totalIncome: ti, totalExpense: te, manualModal: mm };
+}
+
 
     function updateSummary(ti, te, tm) {
         const balance = ti - te;
