@@ -428,6 +428,16 @@
         }
         .guest-btn:active { transform: scale(0.96); }
 
+        .status-bar {
+            background: rgba(255,255,255,0.5);
+            border-radius: 0.4rem;
+            padding: 0.2rem 0.5rem;
+            font-size: 0.55rem;
+            color: #4a6a8a;
+            text-align: center;
+            margin-bottom: 0.5rem;
+        }
+
         @media (max-width: 400px) {
             .card { padding: 0.8rem 0.6rem; }
             .summary-item .value { font-size: 0.95rem; }
@@ -456,6 +466,7 @@
         </div>
         <div class="login-error" id="loginError"></div>
         <button class="btn btn-primary" id="loginBtn">Masuk sebagai Admin</button>
+        <div class="login-hint">🔑 Kata sandi: <code>alpha666</code></div>
         <button class="guest-btn" id="guestBtn">👤 Lanjut sebagai Tamu</button>
     </div>
 </div>
@@ -470,6 +481,8 @@
     <div class="info-box">
         <span>📅 <span id="currentDate" class="date-display"></span></span>
     </div>
+
+    <div id="statusBar" class="status-bar">⏳ Memuat data...</div>
 
     <div class="summary-grid">
         <div class="summary-item"><span>💹 Pemasukan</span><div class="value income" id="totalIncome">Rp 0</div></div>
@@ -495,68 +508,80 @@
     </div>
 
     <div class="actions" id="actionsContainer"></div>
-    <div class="footer-note">© Nabiel Voldigoad —🌸</div>
+    <div class="footer-note">⚡ Modal = isian manual + (total pemasukan - total pengeluaran)</div>
 </div>
 
 <script>
-    const GITHUB_USER = 'Alphanizm';
-        const GITHUB_REPO = 'Money';
-        const GITHUB_TOKEN = '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';
-    const GITHUB_API = 'https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/data.json';
-    const PASSWORD = 'alpha666';
-    let entries = [];
-    let currentUser = null;
+// ============================================
+// KONFIGURASI GITHUB - GANTI DENGAN DATA ANDA!
+// ============================================
+const GITHUB_USER = 'username_anda';          // Ganti dengan username GitHub Anda
+const GITHUB_REPO = 'keuangan-data';           // Nama repository
+const GITHUB_TOKEN = 'ghp_xxxxxxxxxxxxxxxx';   // Personal Access Token (dari GitHub)
 
-    const tbody = document.getElementById('entriesBody');
-    const actionsContainer = document.getElementById('actionsContainer');
-    const totalIncomeEl = document.getElementById('totalIncome');
-    const totalExpenseEl = document.getElementById('totalExpense');
-    const totalBalanceEl = document.getElementById('totalBalance');
-    const totalModalEl = document.getElementById('totalModal');
-    const currentDateEl = document.getElementById('currentDate');
-    const loginOverlay = document.getElementById('loginOverlay');
-    const passwordInput = document.getElementById('passwordInput');
-    const loginError = document.getElementById('loginError');
-    const loginBtn = document.getElementById('loginBtn');
-    const guestBtn = document.getElementById('guestBtn');
-    const roleBadge = document.getElementById('roleBadge');
-    const tableWrap = document.getElementById('tableWrap');
-    const statusBar = document.getElementById('statusBar');
+const GITHUB_API = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/data.json`;
+// ============================================
 
-    function getToday() {
-        return new Date().toISOString().split('T')[0];
-    }
+const PASSWORD = 'alpha666';
+let entries = [];
+let currentUser = null;
+let isSaving = false;
 
-    function formatRupiah(amount) {
-        return 'Rp ' + Number(amount).toLocaleString('id-ID');
-    }
+// DOM refs
+const tbody = document.getElementById('entriesBody');
+const actionsContainer = document.getElementById('actionsContainer');
+const totalIncomeEl = document.getElementById('totalIncome');
+const totalExpenseEl = document.getElementById('totalExpense');
+const totalBalanceEl = document.getElementById('totalBalance');
+const totalModalEl = document.getElementById('totalModal');
+const currentDateEl = document.getElementById('currentDate');
+const loginOverlay = document.getElementById('loginOverlay');
+const passwordInput = document.getElementById('passwordInput');
+const loginError = document.getElementById('loginError');
+const loginBtn = document.getElementById('loginBtn');
+const guestBtn = document.getElementById('guestBtn');
+const roleBadge = document.getElementById('roleBadge');
+const tableWrap = document.getElementById('tableWrap');
+const statusBar = document.getElementById('statusBar');
 
-    function isAdmin() {
-        return currentUser === 'admin';
-    }
+function getToday() {
+    return new Date().toISOString().split('T')[0];
+}
 
-    function canEdit() {
-        return isAdmin();
-    }
+function formatRupiah(amount) {
+    return 'Rp ' + Number(amount).toLocaleString('id-ID');
+}
 
-    function escapeHtml(text) {
-        if (!text) return '';
-        return String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    }
+function isAdmin() {
+    return currentUser === 'admin';
+}
 
-    function updateDate() {
-        const now = new Date();
-        currentDateEl.textContent = now.toLocaleDateString('id-ID', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-        });
-    }
+function canEdit() {
+    return isAdmin();
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    return String(text).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function updateDate() {
+    const now = new Date();
+    currentDateEl.textContent = now.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
 function setStatus(text, isError = false) {
     statusBar.textContent = text;
     statusBar.style.color = isError ? '#b13e3e' : '#4a6a8a';
-    }
+}
+
+// ========== GITHUB FUNCTIONS ==========
+
 async function loadFromGitHub() {
     try {
         setStatus('⏳ Membaca data dari GitHub...');
@@ -565,7 +590,6 @@ async function loadFromGitHub() {
         
         if (!response.ok) {
             if (response.status === 404) {
-                // File belum ada, buat default
                 setStatus('📝 File data belum ada, membuat baru...');
                 const today = getToday();
                 entries = [
@@ -585,11 +609,9 @@ async function loadFromGitHub() {
         }
         
         const data = await response.json();
-        // Decode dari base64
         const content = atob(data.content);
         entries = JSON.parse(content);
         
-        // Pastikan semua entry punya field yang diperlukan
         for (const e of entries) {
             if (e.modal === undefined) e.modal = 0;
             if (!e.date) e.date = getToday();
@@ -601,7 +623,6 @@ async function loadFromGitHub() {
     } catch (error) {
         console.error('Load error:', error);
         setStatus('❌ Gagal memuat data! Cek koneksi & token.', true);
-        // Fallback ke data default
         const today = getToday();
         entries = [
             { id: '1', desc: 'Gaji harian', income: 150000, expense: 0, modal: 0, date: today },
@@ -615,7 +636,6 @@ async function loadFromGitHub() {
     }
 }
 
-// Simpan data ke GitHub
 async function saveToGitHub() {
     if (isSaving) return;
     isSaving = true;
@@ -623,7 +643,6 @@ async function saveToGitHub() {
     try {
         setStatus('⏳ Menyimpan ke GitHub...');
         
-        // Ambil SHA file (dibutuhkan untuk update)
         const getRes = await fetch(GITHUB_API);
         let sha = null;
         
@@ -632,7 +651,6 @@ async function saveToGitHub() {
             sha = getData.sha;
         }
         
-        // Convert ke base64
         const jsonString = JSON.stringify(entries, null, 2);
         const content = btoa(unescape(encodeURIComponent(jsonString)));
         
@@ -682,257 +700,236 @@ function calculateTotals() {
     return { totalIncome: ti, totalExpense: te, manualModal: mm };
 }
 
+function updateSummary(ti, te, tm) {
+    const balance = ti - te;
+    totalIncomeEl.textContent = formatRupiah(ti);
+    totalExpenseEl.textContent = formatRupiah(te);
+    totalBalanceEl.textContent = formatRupiah(balance);
+    totalModalEl.textContent = formatRupiah(tm || 0);
+}
 
-    function updateSummary(ti, te, tm) {
-        const balance = ti - te;
-        const modal = tm !== undefined ? tm : 0;
-        totalIncomeEl.textContent = formatRupiah(ti);
-        totalExpenseEl.textContent = formatRupiah(te);
-        totalBalanceEl.textContent = formatRupiah(balance);
-        totalModalEl.textContent = formatRupiah(modal);
+function applyEditability() {
+    const editable = canEdit();
+    document.querySelectorAll('#entriesBody input.edit-input').forEach(inp => {
+        inp.disabled = !editable;
+        inp.style.pointerEvents = editable ? 'auto' : 'none';
+    });
+    document.querySelectorAll('#entriesBody button[data-action="deleteRow"]').forEach(btn => btn.disabled = !editable);
+    roleBadge.className = 'login-badge ' + (isAdmin() ? 'admin' : 'guest');
+    roleBadge.innerHTML = isAdmin() ? '👑 Admin' : '👤 Tamu';
+}
+
+function renderActions() {
+    if (canEdit()) {
+        actionsContainer.innerHTML = `
+            <div class="btn-group">
+                <button class="btn btn-primary" id="addRowBtn">+ Tambah</button>
+                <button class="btn btn-outline" id="logoutBtnAction" style="border-color:#b3cbe0;">🚪 Keluar</button>
+            </div>
+        `;
+        document.getElementById('addRowBtn').onclick = addNewRow;
+        document.getElementById('logoutBtnAction').onclick = logout;
+    } else {
+        actionsContainer.innerHTML = `
+            <button class="btn-logout-big" id="logoutBtnBig">
+                <span class="icon">🚪</span> Keluar
+            </button>
+        `;
+        document.getElementById('logoutBtnBig').onclick = logout;
+    }
+}
+
+function render() {
+    const editable = canEdit();
+    const { totalIncome, totalExpense, manualModal } = calculateTotals();
+    const selisih = totalIncome - totalExpense;
+    const totalModal = manualModal + selisih;
+
+    if (editable) {
+        tableWrap.classList.remove('hide-delete-col');
+    } else {
+        tableWrap.classList.add('hide-delete-col');
     }
 
-    function applyEditability() {
-        const editable = canEdit();
-        document.querySelectorAll('#entriesBody input.edit-input').forEach(inp => {
-            inp.disabled = !editable;
-            inp.style.pointerEvents = editable ? 'auto' : 'none';
-        });
-        document.querySelectorAll('#entriesBody button[data-action="deleteRow"]').forEach(btn => btn.disabled = !editable);
-        roleBadge.className = 'login-badge ' + (isAdmin() ? 'admin' : 'guest');
-        roleBadge.innerHTML = isAdmin() ? '👑 Admin' : '👤 Tamu';
-    }
-
-    function renderActions() {
-        if (canEdit()) {
-            actionsContainer.innerHTML = `
-                <div class="btn-group">
-                    <button class="btn btn-primary" id="addRowBtn">+ Tambah</button>
-                    <button class="btn btn-outline" id="resetDefaultBtn">↺ Reset</button>
-                </div>
-                <div class="btn-group">
-                    <button class="btn btn-outline btn-danger-outline" id="clearAllBtn">✕ Hapus semua</button>
-                    <button class="btn btn-outline" id="logoutBtnAction" style="border-color:#b3cbe0;">🚪 Keluar</button>
-                </div>
-            `;
-            document.getElementById('addRowBtn').addEventListener('click', addNewRow);
-            document.getElementById('resetDefaultBtn').addEventListener('click', resetToDefault);
-            document.getElementById('clearAllBtn').addEventListener('click', clearAll);
-            document.getElementById('logoutBtnAction').addEventListener('click', logout);
-        } else {
-            actionsContainer.innerHTML = `
-                <button class="btn-logout-big" id="logoutBtnBig">
-                    <span class="icon">🚪</span> Keluar
-                </button>
-            `;
-            document.getElementById('logoutBtnBig').addEventListener('click', logout);
-        }
-    }
-
-    function render() {
-        const editable = canEdit();
-        const { totalIncome, totalExpense, manualModal } = calculateTotals();
-        const selisih = totalIncome - totalExpense;
-        const totalModal = manualModal + selisih;
-
-        if (editable) {
-            tableWrap.classList.remove('hide-delete-col');
-        } else {
-            tableWrap.classList.add('hide-delete-col');
-        }
-
-        if (entries.length === 0) {
-            tbody.innerHTML = `<tr class="empty-row"><td colspan="${editable ? 6 : 5}">Belum ada catatan.</td></tr>`;
-            updateSummary(totalIncome, totalExpense, totalModal);
-            applyEditability();
-            renderActions();
-            return;
-        }
-
-        let html = '';
-        for (const entry of entries) {
-            const iv = Number(entry.income) || 0;
-            const ev = Number(entry.expense) || 0;
-            const mv = Number(entry.modal) || 0;
-            const dv = entry.date || getToday();
-            html += `
-                <tr data-id="${entry.id}">
-                    <td><input type="text" class="edit-input" style="min-width:50px" value="${escapeHtml(entry.desc || '')}" data-field="desc" placeholder="Ket." ${editable ? '' : 'disabled'} /></td>
-                    <td class="date-col"><input type="date" class="edit-input date-input" value="${dv}" data-field="date" ${editable ? '' : 'disabled'} /></td>
-                    <td><input type="number" min="0" step="1" class="edit-input income-input" value="${iv}" data-field="income" placeholder="0" ${editable ? '' : 'disabled'} /></td>
-                    <td><input type="number" min="0" step="1" class="edit-input expense-input" value="${ev}" data-field="expense" placeholder="0" ${editable ? '' : 'disabled'} /></td>
-                    <td><input type="number" min="0" step="1" class="edit-input modal-input" value="${mv}" data-field="modal" placeholder="0" ${editable ? '' : 'disabled'} /></td>
-                    <td style="text-align:center" class="delete-col"><button class="btn btn-outline btn-danger-outline" style="padding:.1rem .4rem;font-size:.6rem" data-action="deleteRow" data-id="${entry.id}" ${editable ? '' : 'disabled'}>✕</button></td>
-                </tr>
-            `;
-        }
-        tbody.innerHTML = html;
+    if (entries.length === 0) {
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="${editable ? 6 : 5}">Belum ada catatan.</td></tr>`;
         updateSummary(totalIncome, totalExpense, totalModal);
         applyEditability();
         renderActions();
-        saveToLocalStorage();
+        return;
     }
 
-    function handleInputChange(e) {
-        if (!canEdit()) {
-            e.preventDefault();
-            return;
+    let html = '';
+    for (const entry of entries) {
+        const iv = Number(entry.income) || 0;
+        const ev = Number(entry.expense) || 0;
+        const mv = Number(entry.modal) || 0;
+        const dv = entry.date || getToday();
+        html += `
+            <tr data-id="${entry.id}">
+                <td><input type="text" class="edit-input" style="min-width:50px" value="${escapeHtml(entry.desc || '')}" data-field="desc" placeholder="Ket." ${editable ? '' : 'disabled'} /></td>
+                <td class="date-col"><input type="date" class="edit-input date-input" value="${dv}" data-field="date" ${editable ? '' : 'disabled'} /></td>
+                <td><input type="number" min="0" step="1" class="edit-input income-input" value="${iv}" data-field="income" placeholder="0" ${editable ? '' : 'disabled'} /></td>
+                <td><input type="number" min="0" step="1" class="edit-input expense-input" value="${ev}" data-field="expense" placeholder="0" ${editable ? '' : 'disabled'} /></td>
+                <td><input type="number" min="0" step="1" class="edit-input modal-input" value="${mv}" data-field="modal" placeholder="0" ${editable ? '' : 'disabled'} /></td>
+                <td style="text-align:center" class="delete-col"><button class="btn btn-outline btn-danger-outline" style="padding:.1rem .4rem;font-size:.6rem" data-action="deleteRow" data-id="${entry.id}" ${editable ? '' : 'disabled'}>✕</button></td>
+            </tr>
+        `;
+    }
+    tbody.innerHTML = html;
+    updateSummary(totalIncome, totalExpense, totalModal);
+    applyEditability();
+    renderActions();
+}
+
+// ========== CRUD FUNCTIONS ==========
+
+function handleInputChange(e) {
+    if (!canEdit()) {
+        e.preventDefault();
+        return;
+    }
+    const target = e.target;
+    if (!target.classList.contains('edit-input')) return;
+    const row = target.closest('tr');
+    if (!row) return;
+    const id = row.dataset.id;
+    if (!id) return;
+    const field = target.dataset.field;
+    if (!field) return;
+    const idx = entries.findIndex(e => e.id === id);
+    if (idx === -1) return;
+    let val = target.value;
+    if (['income', 'expense', 'modal'].includes(field)) {
+        const num = parseFloat(val);
+        val = isNaN(num) || num < 0 ? 0 : Math.round(num);
+        if (target.value !== String(val)) target.value = val;
+        entries[idx][field] = val;
+    } else if (field === 'desc' || field === 'date') {
+        entries[idx][field] = val;
+    }
+    const { totalIncome, totalExpense, manualModal } = calculateTotals();
+    const selisih = totalIncome - totalExpense;
+    updateSummary(totalIncome, totalExpense, manualModal + selisih);
+    saveToGitHub();
+}
+
+function handleDeleteClick(e) {
+    if (!canEdit()) {
+        e.preventDefault();
+        return;
+    }
+    const target = e.target.closest('button[data-action="deleteRow"]');
+    if (!target || target.disabled) return;
+    const id = target.dataset.id;
+    if (!id) return;
+    if (!confirm('Hapus baris ini?')) return;
+    entries = entries.filter(e => e.id !== id);
+    render();
+    saveToGitHub();
+}
+
+function addNewRow() {
+    if (!canEdit()) return;
+    entries.push({
+        id: 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
+        desc: '',
+        income: 0,
+        expense: 0,
+        modal: 0,
+        date: getToday()
+    });
+    render();
+    saveToGitHub();
+    setTimeout(() => {
+        const rows = tbody.querySelectorAll('tr');
+        if (rows.length) {
+            const inp = rows[rows.length - 1].querySelector('input[data-field="desc"]');
+            if (inp && canEdit()) inp.focus();
         }
-        const target = e.target;
-        if (!target.classList.contains('edit-input')) return;
-        const row = target.closest('tr');
-        if (!row) return;
-        const id = row.dataset.id;
-        if (!id) return;
-        const field = target.dataset.field;
-        if (!field) return;
-        const idx = entries.findIndex(e => e.id === id);
-        if (idx === -1) return;
-        let val = target.value;
-        if (['income', 'expense', 'modal'].includes(field)) {
-            const num = parseFloat(val);
-            val = isNaN(num) || num < 0 ? 0 : Math.round(num);
-            if (target.value !== String(val)) target.value = val;
-            entries[idx][field] = val;
-        } else if (field === 'desc' || field === 'date') {
-            entries[idx][field] = val;
-        }
-        const { totalIncome, totalExpense, manualModal } = calculateTotals();
-        const selisih = totalIncome - totalExpense;
-        updateSummary(totalIncome, totalExpense, manualModal + selisih);
-        saveToLocalStorage();
-    }
+    }, 50);
+}
 
-    function handleDeleteClick(e) {
-        if (!canEdit()) {
-            e.preventDefault();
-            return;
-        }
-        const target = e.target.closest('button[data-action="deleteRow"]');
-        if (!target || target.disabled) return;
-        const id = target.dataset.id;
-        if (!id) return;
-        if (!confirm('Hapus baris ini?')) return;
-        entries = entries.filter(e => e.id !== id);
+// ========== LOGIN FUNCTIONS ==========
+
+function login() {
+    const pwd = passwordInput.value.trim();
+    if (!pwd) {
+        loginError.textContent = '❌ Masukkan kata sandi.';
+        return;
+    }
+    if (pwd === PASSWORD) {
+        currentUser = 'admin';
+        loginOverlay.style.display = 'none';
+        loginError.textContent = '';
+        passwordInput.value = '';
+        sessionStorage.setItem('currentUser', 'admin');
         render();
-    }
-
-    function addNewRow() {
-        if (!canEdit()) return;
-        entries.push({
-            id: 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-            desc: '',
-            income: 0,
-            expense: 0,
-            modal: 0,
-            date: getToday()
-        });
-        render();
-        setTimeout(() => {
-            const rows = tbody.querySelectorAll('tr');
-            if (rows.length) {
-                const inp = rows[rows.length - 1].querySelector('input[data-field="desc"]');
-                if (inp && canEdit()) inp.focus();
-            }
-        }, 50);
-    }
-
-    function resetToDefault() {
-        if (!canEdit()) return;
-        if (entries.length && !confirm('Reset ke contoh awal?')) return;
-        entries = DEFAULT_ENTRIES.map(item => ({
-            ...item,
-            id: 'id-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
-            date: getToday()
-        }));
-        render();
-    }
-
-    function clearAll() {
-        if (!canEdit() || entries.length === 0) return;
-        if (!confirm('Hapus semua data?')) return;
-        entries = [];
-        render();
-    }
-
-    function login() {
-        const pwd = passwordInput.value.trim();
-        if (!pwd) {
-            loginError.textContent = '❌ Masukkan kata sandi.';
-            return;
-        }
-        if (pwd === PASSWORD) {
-            currentUser = 'admin';
-            loginOverlay.style.display = 'none';
-            loginError.textContent = '';
-            passwordInput.value = '';
-            sessionStorage.setItem('currentUser', 'admin');
-            render();
-        } else {
-            loginError.textContent = '❌ Kata sandi salah. Coba lagi.';
-            passwordInput.value = '';
-            passwordInput.focus();
-        }
-    }
-
-    function logout() {
-        currentUser = null;
-        sessionStorage.removeItem('currentUser');
-        render();
-        loginOverlay.style.display = 'flex';
+    } else {
+        loginError.textContent = '❌ Kata sandi salah. Coba lagi.';
+        passwordInput.value = '';
         passwordInput.focus();
     }
+}
 
-    function guestLogin() {
-        currentUser = null;
+function logout() {
+    currentUser = null;
+    sessionStorage.removeItem('currentUser');
+    render();
+    loginOverlay.style.display = 'flex';
+    passwordInput.focus();
+}
+
+function guestLogin() {
+    currentUser = null;
+    loginOverlay.style.display = 'none';
+    sessionStorage.removeItem('currentUser');
+    render();
+}
+
+// ========== INIT ==========
+
+function init() {
+    updateDate();
+    setInterval(updateDate, 60000);
+
+    const savedUser = sessionStorage.getItem('currentUser');
+    if (savedUser === 'admin') {
+        currentUser = 'admin';
         loginOverlay.style.display = 'none';
-        sessionStorage.removeItem('currentUser');
-        render();
+    } else {
+        currentUser = null;
+        loginOverlay.style.display = 'flex';
     }
 
-    function init() {
-        loadFromLocalStorage();
-        updateDate();
-        setInterval(updateDate, 60000);
+    loadFromGitHub();
 
-        const savedUser = sessionStorage.getItem('currentUser');
-        if (savedUser === 'admin') {
-            currentUser = 'admin';
-            loginOverlay.style.display = 'none';
-        } else {
-            currentUser = null;
-            loginOverlay.style.display = 'flex';
-        }
+    tbody.addEventListener('input', handleInputChange);
+    tbody.addEventListener('click', handleDeleteClick);
 
-        render();
+    loginBtn.onclick = function(e) {
+        e.preventDefault();
+        login();
+    };
 
-        tbody.addEventListener('input', handleInputChange);
-        tbody.addEventListener('click', handleDeleteClick);
+    guestBtn.onclick = function(e) {
+        e.preventDefault();
+        guestLogin();
+    };
 
-        loginBtn.onclick = function(e) {
+    passwordInput.onkeydown = function(e) {
+        if (e.key === 'Enter') {
             e.preventDefault();
             login();
-        };
+        }
+    };
+}
 
-        guestBtn.onclick = function(e) {
-            e.preventDefault();
-            guestLogin();
-        };
-
-        passwordInput.onkeydown = function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                login();
-            }
-        };
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
 </script>
 </body>
 </html>
