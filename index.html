@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Catatan Keuangan</title>
+    <style>
+        *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+        body{font-family:'Inter',system-ui,sans-serif;background:linear-gradient(135deg,#dce8f5,#b8d0e8,#a0c0e0);min-height:100vh;display:flex;justify-content:center;padding:.5rem;color:#0b1a2e}
+        .card{max-width:480px;width:100%;background:rgba(255,255,255,.92);border-radius:1.2rem;padding:1rem;border:1px solid rgba(255,255,255,.4);margin:auto}
+        h1{font-size:1.2rem;font-weight:700;display:flex;align-items:center;gap:.3rem;color:#0a2a44}
+        .subhead{font-size:.7rem;border-left:3px solid #4a8ab5;padding-left:.6rem;margin-bottom:1rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
+        .login-badge{font-size:.6rem;padding:.15rem .6rem;border-radius:30px;font-weight:600;border:1px solid #c9ddec;background:rgba(255,255,255,.7)}
+        .login-badge.admin{background:#dbf0e5;border-color:#6bb89a;color:#0a5d3a}
+        .login-badge.guest{background:#fff3e0;border-color:#f0c8a0;color:#8a5a2a}
+        .info-box{background:rgba(255,248,230,.7);border-radius:.6rem;padding:.4rem .6rem;margin-bottom:.6rem;font-size:.65rem;border:1px solid rgba(200,180,140,.3);display:flex;justify-content:space-between;align-items:center}
+        .info-box .date-display{font-weight:600;color:#1d4a7c;background:rgba(255,255,255,.5);padding:.1rem .5rem;border-radius:20px}
+        .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-bottom:.8rem}
+        .summary-item{background:rgba(255,255,255,.7);border-radius:.8rem;padding:.5rem .3rem;text-align:center;border:1px solid rgba(255,255,255,.6)}
+        .summary-item span{display:block;font-size:.5rem;text-transform:uppercase;letter-spacing:.04em;color:#2f557b;font-weight:700}
+        .summary-item .value{font-size:.95rem;font-weight:700}
+        .summary-item .value.income{color:#0e7b4c}
+        .summary-item .value.expense{color:#b13e3e}
+        .summary-item .value.balance{color:#1d4a7c}
+        .summary-item .value.modal{color:#8b6b3d}
+        .table-wrap{background:rgba(255,255,255,.7);border-radius:.8rem;border:1px solid rgba(200,215,235,.5);overflow-x:auto;margin-bottom:.8rem}
+        table{width:100%;border-collapse:collapse;font-size:.62rem;min-width:420px}
+        th{padding:.3rem .25rem;font-weight:700;color:#1a3a5a;border-bottom:2px solid rgba(60,120,180,.15);font-size:.5rem;text-transform:uppercase;text-align:left}
+        td{padding:.25rem;border-bottom:1px solid rgba(200,215,235,.25);vertical-align:middle}
+        .edit-input{width:100%;min-width:35px;padding:.15rem .25rem;border:1px solid rgba(180,205,230,.4);border-radius:14px;font-size:.6rem;background:rgba(255,255,255,.8)}
+        .edit-input:focus{outline:2px solid #5a9acf;border-color:transparent}
+        .edit-input.income-input{color:#0e7b4c}
+        .edit-input.expense-input{color:#b13e3e}
+        .edit-input.modal-input{color:#8b6b3d}
+        .edit-input.date-input{min-width:70px;font-size:.55rem}
+        .edit-input:disabled{background:rgba(240,245,250,.5);color:#3a5a7a;border-color:rgba(180,200,220,.2);opacity:.7;cursor:not-allowed;pointer-events:none}
+        .hide-delete-col .delete-col{display:none}
+        .actions{display:flex;flex-wrap:wrap;justify-content:center;gap:.4rem;margin-top:.2rem;min-height:2.5rem;align-items:center}
+        .btn-group{display:flex;gap:.3rem;flex-wrap:wrap;justify-content:center}
+        .btn{background:rgba(255,255,255,.8);border:1px solid rgba(180,205,230,.5);padding:.3rem .7rem;border-radius:50px;font-weight:600;font-size:.6rem;color:#1f3b57;cursor:pointer;display:inline-flex;align-items:center;gap:.15rem;touch-action:manipulation}
+        .btn-primary{background:#1d4a7c;border-color:#1d4a7c;color:#fff;box-shadow:0 3px 10px -3px rgba(29,74,124,0.3)}
+        .btn-primary:active{transform:scale(.96)}
+        .btn-danger-outline{border-color:rgba(200,150,150,.5);color:#a13d3d}
+        .btn:disabled{opacity:.4;pointer-events:none}
+        .btn-logout-big{background:rgba(255,255,255,.9);border:2px solid rgba(180,205,230,.6);padding:.6rem 1.5rem;border-radius:60px;font-weight:700;font-size:.8rem;color:#1f3b57;cursor:pointer;min-width:100px;display:inline-flex;align-items:center;gap:.4rem;justify-content:center}
+        .btn-logout-big:active{transform:scale(.96)}
+        .footer-note{font-size:.5rem;color:#4a6a8a;text-align:center;margin-top:.6rem;border-top:1px solid rgba(180,205,230,.2);padding-top:.5rem}
+        .empty-row td{padding:1rem .3rem;text-align:center;color:#6d8eb0;font-style:italic;font-size:.65rem}
+        .login-overlay{position:fixed;inset:0;background:rgba(10,30,55,.5);backdrop-filter:blur(8px);display:flex;justify-content:center;align-items:center;z-index:1000;padding:1rem}
+        .login-modal{background:rgba(255,255,255,.95);max-width:340px;width:100%;padding:1.5rem 1.2rem;border-radius:1.2rem;text-align:center;border:1px solid rgba(255,255,255,.4)}
+        .login-modal h2{font-weight:700;font-size:1.2rem;color:#0a2a44}
+        .login-modal p{color:#3f648a;margin-bottom:1rem;font-size:.75rem}
+        .login-modal .form-group{margin-bottom:.6rem;text-align:left}
+        .login-modal .form-group label{display:block;font-size:.65rem;font-weight:700;color:#1f3b57}
+        .login-modal input{width:100%;padding:.6rem .8rem;border:1px solid rgba(180,205,230,.5);border-radius:50px;font-size:.85rem;background:rgba(245,248,252,.8)}
+        .login-modal input:focus{outline:2px solid #5a9acf;border-color:transparent}
+        .login-modal .btn{width:100%;justify-content:center;padding:.6rem;font-size:.8rem;margin-top:.3rem}
+        .login-error{color:#b13e3e;font-size:.7rem;min-height:1rem}
+        .login-hint{margin-top:.6rem;padding:.5rem;background:rgba(235,245,255,.7);border-radius:.6rem;font-size:.65rem;color:#3f648a;border:1px solid rgba(180,205,230,.3)}
+        .login-hint code{background:rgba(200,220,240,.5);padding:.05rem .35rem;border-radius:4px;font-weight:600}
+        .guest-btn{margin-top:.5rem;background:rgba(255,255,255,.6);border:1px solid rgba(180,205,230,.4);padding:.5rem;border-radius:50px;font-weight:600;font-size:.75rem;color:#1f3b57;cursor:pointer;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:.3rem}
+        .status-bar{background:rgba(255,255,255,.5);border-radius:.4rem;padding:.2rem .5rem;font-size:.55rem;color:#4a6a8a;text-align:center;margin-bottom:.5rem}
+        .dollar-decor{position:fixed;font-size:3rem;opacity:.06;font-weight:700;color:#1d4a7c;pointer-events:none;z-index:0;font-family:Georgia,serif}
+        .dollar-decor:nth-child(1){top:3%;left:2%;font-size:4rem}
+        .dollar-decor:nth-child(2){bottom:5%;right:2%;font-size:5rem;transform:rotate(10deg)}
+        .dollar-decor:nth-child(3){top:45%;left:1%;font-size:2.5rem;opacity:.04}
+        .dollar-decor:nth-child(4){top:15%;right:2%;font-size:3rem;opacity:.04}
+        @media(max-width:400px){.card{padding:.6rem}.summary-item .value{font-size:.8rem}.edit-input{font-size:.55rem;padding:.1rem .2rem;min-width:28px}.edit-input.date-input{min-width:60px;font-size:.5rem}table{font-size:.55rem;min-width:360px}.btn{font-size:.55rem;padding:.2rem .5rem}.btn-logout-big{padding:.4rem 1rem;font-size:.7rem;min-width:70px}}
+    </style>
+</head>
+<body>
+
+<div class="dollar-decor">$</div>
+<div class="dollar-decor">$</div>
+<div class="dollar-decor">$</div>
+<div class="dollar-decor">$</div>
+
+<div class="login-overlay" id="loginOverlay">
+    <div class="login-modal">
+        <h2>💰 Finance Tracker</h2>
+        <p>Masuk untuk mengelola keuangan</p>
+        <div class="form-group"><label>Kata Sandi</label><input type="password" id="passwordInput" placeholder="Masukkan kata sandi" autofocus></div>
+        <div class="login-error" id="loginError"></div>
+        <button class="btn btn-primary" id="loginBtn">Masuk sebagai Admin</button>
+        <div class="login-hint">🔑 Kata sandi: <code>alpha666</code></div>
+        <button class="guest-btn" id="guestBtn">👤 Lanjut sebagai Tamu</button>
+    </div>
+</div>
+
+<div class="card">
+    <h1>📊 Catatan Keuangan</h1>
+    <div class="subhead">
+        <span>Pemasukan · Pengeluaran · Modal</span>
+        <span class="login-badge guest" id="roleBadge">👤 Tamu</span>
+    </div>
+    <div class="info-box"><span>📅 <span id="currentDate" class="date-display"></span></span></div>
+    <div id="statusBar" class="status-bar">✅ Siap digunakan</div>
+    <div class="summary-grid">
+        <div class="summary-item"><span>💹 Pemasukan</span><div class="value income" id="totalIncome">Rp 0</div></div>
+        <div class="summary-item"><span>📉 Pengeluaran</span><div class="value expense" id="totalExpense">Rp 0</div></div>
+        <div class="summary-item"><span>💰 Saldo</span><div class="value balance" id="totalBalance">Rp 0</div></div>
+        <div class="summary-item"><span>🏦 Modal</span><div class="value modal" id="totalModal">Rp 0</div></div>
+    </div>
+    <div class="table-wrap" id="tableWrap">
+        <table>
+            <thead><tr><th style="width:18%">Keterangan</th><th style="width:14%" class="date-col">Tanggal</th><th style="width:14%">Masuk</th><th style="width:14%">Keluar</th><th style="width:14%">Modal</th><th style="width:10%;text-align:center" class="delete-col">Hapus</th></tr></thead>
+            <tbody id="entriesBody"></tbody>
+        </table>
+    </div>
+    <div class="actions" id="actionsContainer"></div>
+    <div class="footer-note">⚡ Modal = isian manual + (total pemasukan - total pengeluaran)</div>
+</div>
+
+<script>
+// ============================================
+// KONFIGURASI - PAKAI LOCALSTORAGE SAJA
+// ============================================
+const PASSWORD = 'alpha666';
+
+// ============================================
+
+let entries = [];
+let currentUser = null;
+
+// DOM refs
+const tbody = document.getElementById('entriesBody');
+const actionsContainer = document.getElementById('actionsContainer');
+const totalIncomeEl = document.getElementById('totalIncome');
+const totalExpenseEl = document.getElementById('totalExpense');
+const totalBalanceEl = document.getElementById('totalBalance');
+const totalModalEl = document.getElementById('totalModal');
+const currentDateEl = document.getElementById('currentDate');
+const loginOverlay = document.getElementById('loginOverlay');
+const passwordInput = document.getElementById('passwordInput');
+const loginError = document.getElementById('loginError');
+const loginBtn = document.getElementById('loginBtn');
+const guestBtn = document.getElementById('guestBtn');
+const roleBadge = document.getElementById('roleBadge');
+const tableWrap = document.getElementById('tableWrap');
+const statusBar = document.getElementById('statusBar');
+
+function getToday(){return new Date().toISOString().split('T')[0]}
+function formatRupiah(a){return'Rp '+Number(a).toLocaleString('id-ID')}
+function isAdmin(){return currentUser==='admin'}
+function canEdit(){return isAdmin()}
+function escapeHtml(t){if(!t)return'';return String(t).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function updateDate(){const n=new Date();currentDateEl.textContent=n.toLocaleDateString('id-ID',{weekday:'long',year:'numeric',month:'long',day:'numeric'})}
+function setStatus(t,e=false){statusBar.textContent=t;statusBar.style.color=e?'#b13e3e':'#4a6a8a'}
+
+// ========== DATA FUNCTIONS ==========
+
+function loadDefaultData() {
+    const today = getToday();
+    entries = [
+        {id:'1',desc:'Gaji harian',income:150000,expense:0,modal:0,date:today},
+        {id:'2',desc:'Makan siang',income:0,expense:35000,modal:0,date:today},
+        {id:'3',desc:'Jasa desain',income:75000,expense:0,modal:0,date:today},
+        {id:'4',desc:'Transport',income:0,expense:20000,modal:0,date:today},
+        {id:'5',desc:'Snack',income:0,expense:12000,modal:0,date:today},
+        {id:'6',desc:'Modal awal',income:0,expense:0,modal:500000,date:today}
+    ];
+}
+
+function saveData() {
+    try { 
+        localStorage.setItem('dailyEntries', JSON.stringify(entries)); 
+        setStatus('✅ Data tersimpan!');
+    } catch(e) {
+        setStatus('❌ Gagal simpan!', true);
+    }
+}
+
+function loadData() {
+    const stored = localStorage.getItem('dailyEntries');
+    if (stored) {
+        try {
+            entries = JSON.parse(stored);
+            for (const e of entries) {
+                if (e.modal === undefined) e.modal = 0;
+                if (!e.date) e.date = getToday();
+            }
+            setStatus(`✅ Data dimuat (${entries.length} entri)`);
+            return true;
+        } catch(e) {}
+    }
+    loadDefaultData();
+    saveData();
+    setStatus('📝 Data default dibuat');
+    return false;
+}
+
+// ========== RENDER ==========
+
+function calculateTotals(){let ti=0,te=0,mm=0;for(const e of entries){ti+=Number(e.income)||0;te+=Number(e.expense)||0;mm+=Number(e.modal)||0}return{totalIncome:ti,totalExpense:te,manualModal:mm}}
+function updateSummary(ti,te,tm){const balance=ti-te;totalIncomeEl.textContent=formatRupiah(ti);totalExpenseEl.textContent=formatRupiah(te);totalBalanceEl.textContent=formatRupiah(balance);totalModalEl.textContent=formatRupiah(tm||0)}
+function applyEditability(){const e=canEdit();document.querySelectorAll('#entriesBody input.edit-input').forEach(i=>{i.disabled=!e;i.style.pointerEvents=e?'auto':'none'});document.querySelectorAll('#entriesBody button[data-action="deleteRow"]').forEach(b=>b.disabled=!e);roleBadge.className='login-badge '+(isAdmin()?'admin':'guest');roleBadge.innerHTML=isAdmin()?'👑 Admin':'👤 Tamu'}
+function renderActions(){if(canEdit()){actionsContainer.innerHTML=`<div class="btn-group"><button class="btn btn-primary" id="addRowBtn">+ Tambah</button><button class="btn btn-outline" id="logoutBtnAction" style="border-color:#b3cbe0;">🚪 Keluar</button></div>`;document.getElementById('addRowBtn').onclick=addNewRow;document.getElementById('logoutBtnAction').onclick=logout}else{actionsContainer.innerHTML=`<button class="btn-logout-big" id="logoutBtnBig"><span class="icon">🚪</span> Keluar</button>`;document.getElementById('logoutBtnBig').onclick=logout}}
+
+function render(){const e=canEdit();const{totalIncome,totalExpense,manualModal}=calculateTotals();const selisih=totalIncome-totalExpense;const totalModal=manualModal+selisih;if(e){tableWrap.classList.remove('hide-delete-col')}else{tableWrap.classList.add('hide-delete-col')}if(entries.length===0){tbody.innerHTML=`<tr class="empty-row"><td colspan="${e?6:5}">Belum ada catatan.</td></tr>`;updateSummary(totalIncome,totalExpense,totalModal);applyEditability();renderActions();return}let html='';for(const entry of entries){const iv=Number(entry.income)||0,ev=Number(entry.expense)||0,mv=Number(entry.modal)||0;const dv=entry.date||getToday();html+=`<tr data-id="${entry.id}"><td><input type="text" class="edit-input" style="min-width:50px" value="${escapeHtml(entry.desc||'')}" data-field="desc" placeholder="Ket." ${e?'':'disabled'} /></td><td class="date-col"><input type="date" class="edit-input date-input" value="${dv}" data-field="date" ${e?'':'disabled'} /></td><td><input type="number" min="0" step="1" class="edit-input income-input" value="${iv}" data-field="income" placeholder="0" ${e?'':'disabled'} /></td><td><input type="number" min="0" step="1" class="edit-input expense-input" value="${ev}" data-field="expense" placeholder="0" ${e?'':'disabled'} /></td><td><input type="number" min="0" step="1" class="edit-input modal-input" value="${mv}" data-field="modal" placeholder="0" ${e?'':'disabled'} /></td><td style="text-align:center" class="delete-col"><button class="btn btn-outline btn-danger-outline" style="padding:.1rem .4rem;font-size:.6rem" data-action="deleteRow" data-id="${entry.id}" ${e?'':'disabled'}>✕</button></td></tr>`}tbody.innerHTML=html;updateSummary(totalIncome,totalExpense,totalModal);applyEditability();renderActions()}
+
+// ========== CRUD ==========
+
+function handleInputChange(e){
+    if(!canEdit()){e.preventDefault();return}
+    const t=e.target;if(!t.classList.contains('edit-input'))return
+    const r=t.closest('tr');if(!r)return
+    const id=r.dataset.id;if(!id)return
+    const f=t.dataset.field;if(!f)return
+    const idx=entries.findIndex(i=>i.id===id);if(idx===-1)return
+    let v=t.value
+    if(['income','expense','modal'].includes(f)){const n=parseFloat(v);v=isNaN(n)||n<0?0:Math.round(n);if(t.value!==String(v))t.value=v;entries[idx][f]=v}
+    else if(f==='desc'||f==='date'){entries[idx][f]=v}
+    const{totalIncome,totalExpense,manualModal}=calculateTotals()
+    const selisih=totalIncome-totalExpense
+    updateSummary(totalIncome,totalExpense,manualModal+selisih)
+    saveData()
+}
+
+function handleDeleteClick(e){
+    if(!canEdit()){e.preventDefault();return}
+    const t=e.target.closest('button[data-action="deleteRow"]');if(!t||t.disabled)return
+    const id=t.dataset.id;if(!id)return
+    if(!confirm('Hapus baris ini?'))return
+    entries=entries.filter(i=>i.id!==id)
+    render()
+    saveData()
+}
+
+function addNewRow(){
+    if(!canEdit())return
+    entries.push({id:'id-'+Date.now()+'-'+Math.random().toString(36).slice(2,6),desc:'',income:0,expense:0,modal:0,date:getToday()})
+    render()
+    saveData()
+    setTimeout(()=>{const r=tbody.querySelectorAll('tr');if(r.length){const i=r[r.length-1].querySelector('input[data-field="desc"]');if(i&&canEdit())i.focus()}},50)
+}
+
+// ========== LOGIN ==========
+
+function login(){
+    const p=passwordInput.value.trim()
+    if(!p){loginError.textContent='❌ Masukkan kata sandi.';return}
+    if(p===PASSWORD){
+        currentUser='admin'
+        loginOverlay.style.display='none'
+        loginError.textContent=''
+        passwordInput.value=''
+        sessionStorage.setItem('currentUser','admin')
+        render()
+    }else{
+        loginError.textContent='❌ Kata sandi salah. Coba lagi.'
+        passwordInput.value=''
+        passwordInput.focus()
+    }
+}
+
+function logout(){
+    currentUser=null
+    sessionStorage.removeItem('currentUser')
+    render()
+    loginOverlay.style.display='flex'
+    passwordInput.focus()
+}
+
+function guestLogin(){
+    currentUser=null
+    loginOverlay.style.display='none'
+    sessionStorage.removeItem('currentUser')
+    render()
+}
+
+// ========== INIT ==========
+
+function init(){
+    updateDate()
+    setInterval(updateDate,60000)
+    
+    // Cek login
+    if(sessionStorage.getItem('currentUser')==='admin'){
+        currentUser='admin'
+        loginOverlay.style.display='none'
+    }else{
+        currentUser=null
+        loginOverlay.style.display='flex'
+    }
+    
+    // Load data
+    loadData()
+    render()
+    
+    // Event listeners
+    tbody.addEventListener('input', handleInputChange)
+    tbody.addEventListener('click', handleDeleteClick)
+    
+    loginBtn.onclick=function(e){e.preventDefault();login()}
+    guestBtn.onclick=function(e){e.preventDefault();guestLogin()}
+    passwordInput.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();login()}}
+}
+
+if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init)}else{init()}
+</script>
+</body>
+</html>
