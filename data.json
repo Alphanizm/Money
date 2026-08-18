@@ -1,8 +1,0 @@
-[
-  {"id":"1","desc":"Gaji harian","income":150000,"expense":0,"modal":0,"date":"2026-08-18"},
-  {"id":"2","desc":"Makan siang","income":0,"expense":35000,"modal":0,"date":"2026-08-18"},
-  {"id":"3","desc":"Jasa desain","income":75000,"expense":0,"modal":0,"date":"2026-08-18"},
-  {"id":"4","desc":"Transport","income":0,"expense":20000,"modal":0,"date":"2026-08-18"},
-  {"id":"5","desc":"Snack","income":0,"expense":12000,"modal":0,"date":"2026-08-18"},
-  {"id":"6","desc":"Modal awal","income":0,"expense":0,"modal":500000,"date":"2026-08-18"}
-]
