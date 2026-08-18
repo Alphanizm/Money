@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Catatan Keuangan · Modal & Saldo</title>
+    <title>Catatan Keuangan · Supabase</title>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         * {
             box-sizing: border-box;
@@ -466,6 +468,7 @@
         </div>
         <div class="login-error" id="loginError"></div>
         <button class="btn btn-primary" id="loginBtn">Masuk sebagai Admin</button>
+        <div class="login-hint">🔑 Kata sandi: <code>alpha666</code></div>
         <button class="guest-btn" id="guestBtn">👤 Lanjut sebagai Tamu</button>
     </div>
 </div>
@@ -507,24 +510,24 @@
     </div>
 
     <div class="actions" id="actionsContainer"></div>
-    <div class="footer-note">© Nabiel Voldigoad — 🌸</div>
+    <div class="footer-note">⚡ Modal = isian manual + (total pemasukan - total pengeluaran)</div>
 </div>
 
 <script>
 // ============================================
-// KONFIGURASI GITHUB - GANTI DENGAN DATA ANDA!
+// KONFIGURASI SUPABASE - GANTI DENGAN DATA ANDA!
 // ============================================
-const GITHUB_USER = 'Alphanizm';          // Ganti dengan username GitHub Anda
-const GITHUB_REPO = 'Money';           // Nama repository
-const GITHUB_TOKEN = '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';   // Personal Access Token (dari GitHub)
-
-const GITHUB_API = `https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/data.json`;
+const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';      // Ganti dengan Project URL
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'; // Ganti dengan anon public key
 // ============================================
 
 const PASSWORD = 'alpha666';
 let entries = [];
 let currentUser = null;
 let isSaving = false;
+
+// Inisialisasi Supabase
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // DOM refs
 const tbody = document.getElementById('entriesBody');
@@ -579,49 +582,47 @@ function setStatus(text, isError = false) {
     statusBar.style.color = isError ? '#b13e3e' : '#4a6a8a';
 }
 
-// ========== GITHUB FUNCTIONS ==========
+// ========== SUPABASE FUNCTIONS ==========
 
-async function loadFromGitHub() {
+async function loadFromSupabase() {
     try {
-        setStatus('⏳ Membaca data dari GitHub...');
+        setStatus('⏳ Membaca data dari Supabase...');
         
-        const response = await fetch(GITHUB_API);
+        const { data, error } = await supabase
+            .from('entries')
+            .select('*')
+            .order('id');
         
-        if (!response.ok) {
-            if (response.status === 404) {
-                setStatus('📝 File data belum ada, membuat baru...');
-                const today = getToday();
-                entries = [
-                    { id: '1', desc: 'Gaji harian', income: 150000, expense: 0, modal: 0, date: today },
-                    { id: '2', desc: 'Makan siang', income: 0, expense: 35000, modal: 0, date: today },
-                    { id: '3', desc: 'Jasa desain', income: 75000, expense: 0, modal: 0, date: today },
-                    { id: '4', desc: 'Transport', income: 0, expense: 20000, modal: 0, date: today },
-                    { id: '5', desc: 'Snack', income: 0, expense: 12000, modal: 0, date: today },
-                    { id: '6', desc: 'Modal awal', income: 0, expense: 0, modal: 500000, date: today }
-                ];
-                await saveToGitHub();
-                render();
-                setStatus('✅ Data baru dibuat!');
-                return;
+        if (error) throw error;
+        
+        if (data && data.length > 0) {
+            entries = data;
+            for (const e of entries) {
+                if (e.modal === undefined) e.modal = 0;
+                if (!e.date) e.date = getToday();
             }
-            throw new Error(`HTTP ${response.status}`);
+            setStatus(`✅ Data dimuat (${entries.length} entri)`);
+            render();
+        } else {
+            // Data kosong, buat default
+            setStatus('📝 Data kosong, membuat default...');
+            const today = getToday();
+            entries = [
+                { id: '1', desc: 'Gaji harian', income: 150000, expense: 0, modal: 0, date: today },
+                { id: '2', desc: 'Makan siang', income: 0, expense: 35000, modal: 0, date: today },
+                { id: '3', desc: 'Jasa desain', income: 75000, expense: 0, modal: 0, date: today },
+                { id: '4', desc: 'Transport', income: 0, expense: 20000, modal: 0, date: today },
+                { id: '5', desc: 'Snack', income: 0, expense: 12000, modal: 0, date: today },
+                { id: '6', desc: 'Modal awal', income: 0, expense: 0, modal: 500000, date: today }
+            ];
+            await saveToSupabase();
+            render();
+            setStatus('✅ Data default dibuat!');
         }
-        
-        const data = await response.json();
-        const content = atob(data.content);
-        entries = JSON.parse(content);
-        
-        for (const e of entries) {
-            if (e.modal === undefined) e.modal = 0;
-            if (!e.date) e.date = getToday();
-        }
-        
-        setStatus(`✅ Data dimuat (${entries.length} entri)`);
-        render();
         
     } catch (error) {
         console.error('Load error:', error);
-        setStatus('❌ Gagal memuat data! Cek koneksi & token.', true);
+        setStatus('❌ Gagal memuat data! Cek URL & Anon Key.', true);
         const today = getToday();
         entries = [
             { id: '1', desc: 'Gaji harian', income: 150000, expense: 0, modal: 0, date: today },
@@ -635,45 +636,28 @@ async function loadFromGitHub() {
     }
 }
 
-async function saveToGitHub() {
+async function saveToSupabase() {
     if (isSaving) return;
     isSaving = true;
     
     try {
-        setStatus('⏳ Menyimpan ke GitHub...');
+        setStatus('⏳ Menyimpan ke Supabase...');
         
-        const getRes = await fetch(GITHUB_API);
-        let sha = null;
+        // Hapus semua data lama
+        const { error: deleteError } = await supabase
+            .from('entries')
+            .delete()
+            .neq('id', 'dummy'); // Hapus semua
         
-        if (getRes.ok) {
-            const getData = await getRes.json();
-            sha = getData.sha;
-        }
+        if (deleteError) throw deleteError;
         
-        const jsonString = JSON.stringify(entries, null, 2);
-        const content = btoa(unescape(encodeURIComponent(jsonString)));
-        
-        const body = {
-            message: `Update data ${new Date().toLocaleString('id-ID')}`,
-            content: content
-        };
-        
-        if (sha) {
-            body.sha = sha;
-        }
-        
-        const response = await fetch(GITHUB_API, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || `HTTP ${response.status}`);
+        // Insert data baru
+        if (entries.length > 0) {
+            const { error: insertError } = await supabase
+                .from('entries')
+                .insert(entries);
+            
+            if (insertError) throw insertError;
         }
         
         setStatus(`✅ Data tersimpan! (${entries.length} entri)`);
@@ -681,7 +665,7 @@ async function saveToGitHub() {
     } catch (error) {
         console.error('Save error:', error);
         setStatus(`❌ Gagal simpan: ${error.message}`, true);
-        alert(`Gagal menyimpan data!\n\nError: ${error.message}\n\nPastikan:\n1. Token GitHub benar\n2. Repository public\n3. Koneksi internet stabil`);
+        alert(`Gagal menyimpan data!\n\nError: ${error.message}\n\nPastikan:\n1. URL Supabase benar\n2. Anon Key benar\n3. Koneksi internet stabil`);
     } finally {
         isSaving = false;
     }
@@ -810,7 +794,7 @@ function handleInputChange(e) {
     const { totalIncome, totalExpense, manualModal } = calculateTotals();
     const selisih = totalIncome - totalExpense;
     updateSummary(totalIncome, totalExpense, manualModal + selisih);
-    saveToGitHub();
+    saveToSupabase();
 }
 
 function handleDeleteClick(e) {
@@ -825,7 +809,7 @@ function handleDeleteClick(e) {
     if (!confirm('Hapus baris ini?')) return;
     entries = entries.filter(e => e.id !== id);
     render();
-    saveToGitHub();
+    saveToSupabase();
 }
 
 function addNewRow() {
@@ -839,7 +823,7 @@ function addNewRow() {
         date: getToday()
     });
     render();
-    saveToGitHub();
+    saveToSupabase();
     setTimeout(() => {
         const rows = tbody.querySelectorAll('tr');
         if (rows.length) {
@@ -901,7 +885,22 @@ function init() {
         loginOverlay.style.display = 'flex';
     }
 
-    loadFromGitHub();
+    // Cek apakah URL sudah diisi
+    if (SUPABASE_URL === 'https://YOUR_PROJECT.supabase.co' || SUPABASE_ANON_KEY === 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...') {
+        setStatus('⚠️ Setup: Ganti SUPABASE_URL & SUPABASE_ANON_KEY dengan data Anda!', true);
+        const today = getToday();
+        entries = [
+            { id: '1', desc: 'Gaji harian', income: 150000, expense: 0, modal: 0, date: today },
+            { id: '2', desc: 'Makan siang', income: 0, expense: 35000, modal: 0, date: today },
+            { id: '3', desc: 'Jasa desain', income: 75000, expense: 0, modal: 0, date: today },
+            { id: '4', desc: 'Transport', income: 0, expense: 20000, modal: 0, date: today },
+            { id: '5', desc: 'Snack', income: 0, expense: 12000, modal: 0, date: today },
+            { id: '6', desc: 'Modal awal', income: 0, expense: 0, modal: 500000, date: today }
+        ];
+        render();
+    } else {
+        loadFromSupabase();
+    }
 
     tbody.addEventListener('input', handleInputChange);
     tbody.addEventListener('click', handleDeleteClick);
