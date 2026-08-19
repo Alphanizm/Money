@@ -456,21 +456,6 @@
 <div class="dollar-decor">$</div>
 <div class="dollar-decor">$</div>
 
-<div class="login-overlay" id="loginOverlay">
-    <div class="login-modal">
-        <h2>💰 Finance Tracker</h2>
-        <p>Masuk untuk mengelola keuangan</p>
-        <div class="form-group">
-            <label for="passwordInput">Kata Sandi</label>
-            <input type="password" id="passwordInput" placeholder="Masukkan kata sandi" autofocus>
-        </div>
-        <div class="login-error" id="loginError"></div>
-        <button class="btn btn-primary" id="loginBtn">Masuk sebagai Admin</button>
-        <div class="login-hint">🔑 Kata sandi: <code>alpha666</code></div>
-        <button class="guest-btn" id="guestBtn">👤 Lanjut sebagai Tamu</button>
-    </div>
-</div>
-
 <div class="card">
     <h1>📊 Catatan Keuangan</h1>
     <div class="subhead">
@@ -516,7 +501,6 @@
 // KONFIGURASI GOOGLE SHEETS
 // ============================================
 const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxd_IjlDMUY681gsWn3CUig-1s_Pm9P5ZhfqUvxXISD7bQplXf3M8UjahcqHD5h6fZN/exec'; // Ganti dengan URL dari Apps Script!
-const PASSWORD = 'alpha666';
 // ============================================
 
 let entries = [];
@@ -675,38 +659,6 @@ function addNewRow(){
 
 // ========== LOGIN ==========
 
-function login(){
-    const p=passwordInput.value.trim()
-    if(!p){loginError.textContent='❌ Masukkan kata sandi.';return}
-    if(p===PASSWORD){
-        currentUser='admin'
-        loginOverlay.style.display='none'
-        loginError.textContent=''
-        passwordInput.value=''
-        sessionStorage.setItem('currentUser','admin')
-        render()
-    }else{
-        loginError.textContent='❌ Kata sandi salah. Coba lagi.'
-        passwordInput.value=''
-        passwordInput.focus()
-    }
-}
-
-function logout(){
-    currentUser=null
-    sessionStorage.removeItem('currentUser')
-    render()
-    loginOverlay.style.display='flex'
-    passwordInput.focus()
-}
-
-function guestLogin(){
-    currentUser=null
-    loginOverlay.style.display='none'
-    sessionStorage.removeItem('currentUser')
-    render()
-}
-
 // ========== INIT ==========
 
 function init(){
@@ -732,10 +684,7 @@ function init(){
     
     tbody.addEventListener('input', handleInputChange)
     tbody.addEventListener('click', handleDeleteClick)
-    
-    loginBtn.onclick=function(e){e.preventDefault();login()}
-    guestBtn.onclick=function(e){e.preventDefault();guestLogin()}
-    passwordInput.onkeydown=function(e){if(e.key==='Enter'){e.preventDefault();login()}}
+
 }
 
 if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init)}else{init()}
