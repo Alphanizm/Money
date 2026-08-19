@@ -313,16 +313,15 @@
 
     <div class="table-wrap" id="tableWrap">
         <table>
-            <thead>
-                <tr>
-                    <th style="width:18%">Keterangan</th>
-                    <th style="width:14%" class="date-col">Tanggal</th>
-                    <th style="width:14%">Masuk</th>
-                    <th style="width:14%">Keluar</th>
-                    <th style="width:14%">Modal</th>
-                    <th style="width:10%;text-align:center">Hapus</th>
-                </tr>
-            </thead>
+<thead>
+    <tr>
+        <th style="width:28%">Keterangan</th>
+        <th style="width:16%" class="date-col">Tanggal</th>
+        <th style="width:16%">Masuk</th>
+        <th style="width:16%">Keluar</th>
+        <th style="width:16%">Modal</th>
+    </tr>
+</thead>
             <tbody id="entriesBody"></tbody>
         </table>
     </div>
@@ -442,15 +441,14 @@ function render(){
         const mv = Number(entry.modal) || 0;
         const dv = entry.date || getToday();
         html += `
-            <tr data-id="${entry.id}">
-                <td><input type="text" class="edit-input" style="min-width:50px" value="${escapeHtml(entry.desc||'')}" data-field="desc" placeholder="Ket." disabled /></td>
-                <td class="date-col"><input type="date" class="edit-input date-input" value="${dv}" data-field="date" disabled /></td>
-                <td><input type="number" min="0" step="1" class="edit-input income-input" value="${iv}" data-field="income" placeholder="0" disabled /></td>
-                <td><input type="number" min="0" step="1" class="edit-input expense-input" value="${ev}" data-field="expense" placeholder="0" disabled /></td>
-                <td><input type="number" min="0" step="1" class="edit-input modal-input" value="${mv}" data-field="modal" placeholder="0" disabled /></td>
-                <td style="text-align:center"><button class="btn" style="padding:.1rem .4rem;font-size:.6rem;opacity:0.3;cursor:default;" disabled>✕</button></td>
-            </tr>
-        `;
+    <tr data-id="${entry.id}">
+        <td><input type="text" class="edit-input" style="min-width:50px" value="${escapeHtml(entry.desc||'')}" data-field="desc" placeholder="Ket." disabled /></td>
+        <td class="date-col"><input type="date" class="edit-input date-input" value="${dv}" data-field="date" disabled /></td>
+        <td><input type="number" min="0" step="1" class="edit-input income-input" value="${iv}" data-field="income" placeholder="0" disabled /></td>
+        <td><input type="number" min="0" step="1" class="edit-input expense-input" value="${ev}" data-field="expense" placeholder="0" disabled /></td>
+        <td><input type="number" min="0" step="1" class="edit-input modal-input" value="${mv}" data-field="modal" placeholder="0" disabled /></td>
+    </tr>
+`;
     }
     tbody.innerHTML = html;
     updateSummary(totalIncome, totalExpense, totalModal);
